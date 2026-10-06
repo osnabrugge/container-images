@@ -1,0 +1,6 @@
+{
+  "app": "opnsense-mcp",
+  "version": "0.5.3",
+  "upstream": "https://www.npmjs.com/package/@richard-stovall/opnsense-mcp-server",
+  "note": "Version tracks the upstream npm package pinned in OPNSENSE_MCP_VERSION. Keep the two in step when Renovate bumps the ARG."
+}

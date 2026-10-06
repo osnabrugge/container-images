@@ -1,0 +1,5 @@
+{
+  "app": "brocade-icx-mcp",
+  "version": "1.0.0",
+  "upstream": "https://github.com/vespo92/BrocadeICXMCP"
+}

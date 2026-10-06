@@ -1,0 +1,42 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: [
+    "github>home-operations/renovate-presets#8.1.0",
+  ],
+  packageRules: [
+    {
+      // hedless/onshape-mcp declares mcp>=0.1.0 but its code targets the v1 SDK.
+      // v2 removed Server.list_tools(), so the container dies on import with
+      // AttributeError. home-ops#3959 (1.17.0 -> 2.0.0) broke it on 2026-08-23
+      // and it crashlooped until 2026-09-23. Verified: mcp 1.17.0 on python 3.14
+      // still exposes the decorator.
+      // MOVED HERE from home-ops/.renovaterc.json5 when apps/ migrated.
+      description: "onshape-mcp targets the v1 mcp SDK -- v2 removed Server.list_tools()",
+      matchDatasources: ["pypi"],
+      matchPackageNames: ["mcp"],
+      allowedVersions: "<2",
+    },
+    {
+      // These track upstream repos that publish no releases, so every commit on
+      // the default branch is a candidate. Group them so the dashboard stays
+      // readable, and require approval: a new upstream commit is untested here
+      // until the image is built and the MCP server actually starts.
+      description: "Upstream MCP source refs - review before building",
+      matchDatasources: ["git-refs"],
+      dependencyDashboardApproval: true,
+      groupName: "upstream MCP refs",
+    },
+    {
+      matchUpdateTypes: ["major"],
+      addLabels: ["type/major"],
+    },
+    {
+      matchUpdateTypes: ["minor"],
+      addLabels: ["type/minor"],
+    },
+    {
+      matchUpdateTypes: ["patch"],
+      addLabels: ["type/patch"],
+    },
+  ],
+}

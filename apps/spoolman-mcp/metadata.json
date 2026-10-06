@@ -1,0 +1,6 @@
+{
+  "app": "spoolman-mcp",
+  "version": "1.0.1",
+  "upstream": "https://github.com/Disane87/spoolman-mcp",
+  "note": "Published as v1.0.1 under home-ops. Normalised to drop the 'v' so it matches every other image here; update the cluster manifest to :1.0.1 only AFTER the first build publishes that tag."
+}

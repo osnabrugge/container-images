@@ -1,0 +1,6 @@
+{
+  "app": "printer-mcp",
+  "version": "1.2.9",
+  "upstream": "https://www.npmjs.com/package/mcp-3d-printer-server",
+  "note": "Corrects a drift in home-ops: the Dockerfile pinned 1.2.9 but the workflow tagged the image 1.2.5, so ghcr :1.2.5 actually contains 1.2.9. Version now tracks PRINTER_MCP_VERSION; keep the two in step when Renovate bumps the ARG."
+}
