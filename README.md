@@ -42,6 +42,17 @@ apps/
 | `spoolman-mcp` | [Disane87/spoolman-mcp](https://github.com/Disane87/spoolman-mcp) | TypeScript source only, no image |
 | `talos-mcp` | [eleboucher/talos-mcp](https://github.com/eleboucher/talos-mcp) | Canonical source is a private Forgejo; upstream's prebuilt image is on a personal registry |
 
+## Other build artifacts
+
+| artifact | upstream | why we build it |
+| -------- | -------- | --------------- |
+| PrintStash browser extension | [xiao-villamor/PrintStash](https://github.com/xiao-villamor/PrintStash/tree/main/browser-extension) | Upstream only publishes it as a 30-day CI artifact |
+
+`.github/workflows/printstash-extension.yaml` reads the PrintStash tag that
+`home-ops` deploys, builds the extension at that same tag and publishes the
+Chrome, Edge and Firefox zips as the `printstash-extension-<version>` release.
+It runs every six hours and skips versions that are already published.
+
 ## How builds work
 
 `.github/workflows/build.yaml` detects which `apps/<app>/` directories changed in
