@@ -46,6 +46,7 @@ apps/
 
 | artifact | upstream | why we build it |
 | -------- | -------- | --------------- |
+| NetBox Diode image | [Reusable definition in the containers fork](https://github.com/osnabrugge/containers/tree/main/apps/netbox-diode) | Publish the pinned plugin-enabled NetBox variant through this repository's GHCR credentials; the recipe and tests remain in the reusable-image fork |
 | PrintStash browser extension | [xiao-villamor/PrintStash](https://github.com/xiao-villamor/PrintStash/tree/main/browser-extension) | Upstream only publishes it as a 30-day CI artifact |
 
 `.github/workflows/printstash-extension.yaml` reads the PrintStash tag that

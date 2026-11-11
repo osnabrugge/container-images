@@ -1,0 +1,64 @@
+---
+name: NetBox Diode image
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/netbox-diode.yaml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: netbox-diode-image
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the reusable image definition
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: osnabrugge/containers
+          ref: 89405ea36a6fabf168b860f51c85878ada3cb997
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build the test image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: apps/netbox-diode
+          load: true
+          tags: netbox-diode:test
+          cache-from: type=gha,scope=netbox-diode
+          cache-to: type=gha,scope=netbox-diode,mode=max
+
+      - name: Verify the image
+        run: |
+          docker run --rm --entrypoint /opt/netbox/venv/bin/python netbox-diode:test -c \
+            "import importlib.metadata as m, os, grpc; from google.protobuf import __version__; assert os.geteuid() != 0; assert m.version('netboxlabs-diode-netbox-plugin') == '1.19.0'; print('Plugin/native dependencies verified')"
+          docker run --rm --entrypoint /usr/local/bin/uv netbox-diode:test pip check --python /opt/netbox/venv/bin/python
+
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish the tested image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: apps/netbox-diode
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          cache-from: type=gha,scope=netbox-diode
+          tags: ghcr.io/osnabrugge/netbox-diode:4.7.4
+          labels: |
+            org.opencontainers.image.source=https://github.com/osnabrugge/container-images
+            org.opencontainers.image.version=4.7.4
