@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: osnabrugge/containers
-          ref: ba6db006e26760736449ab2abb155ff094bbc22a
+          ref: df038ae9f4cf87762bd97b13ba7422f0e78138fd
           persist-credentials: false
 
       - name: Set up the pinned Go toolchain
@@ -64,8 +64,8 @@ jobs:
           push: true
           provenance: false
           cache-from: type=gha,scope=printstash-api
-          tags: ghcr.io/osnabrugge/printstash-api:0.15.1-homeops.1
+          tags: ghcr.io/osnabrugge/printstash-api:0.15.1-homeops.2
           labels: |
             org.opencontainers.image.source=https://github.com/osnabrugge/container-images
-            org.opencontainers.image.url=https://github.com/osnabrugge/containers/tree/ba6db006e26760736449ab2abb155ff094bbc22a/apps/printstash-api
-            org.opencontainers.image.version=0.15.1-homeops.1
+            org.opencontainers.image.url=https://github.com/osnabrugge/containers/tree/df038ae9f4cf87762bd97b13ba7422f0e78138fd/apps/printstash-api
+            org.opencontainers.image.version=0.15.1-homeops.2
