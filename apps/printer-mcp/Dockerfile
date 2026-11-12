@@ -1,6 +1,6 @@
 # Builds ghcr.io/osnabrugge/printer-mcp — upstream ships an npm package only (no image),
 # so install it globally here and run the stdio MCP server that ToolHive proxies over HTTP.
-FROM docker.io/library/node:24-bookworm-slim
+FROM docker.io/library/node:26-bookworm-slim
 ENV NODE_ENV=production
 # renovate: datasource=npm depName=mcp-3d-printer-server
 ARG PRINTER_MCP_VERSION=1.2.9
