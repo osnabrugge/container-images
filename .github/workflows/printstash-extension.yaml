@@ -46,11 +46,20 @@ jobs:
           if [[ -n "${INPUT_VERSION}" ]]; then
             version="${INPUT_VERSION}"
           else
-            version="$(curl -fsSL "${HELMRELEASE_URL}" | yq '.spec.values.controllers.printstash.containers.api.image.tag')"
+            manifest="$(curl -fsSL "${HELMRELEASE_URL}")"
+            version="$(printf '%s\n' "${manifest}" | yq '.spec.values.controllers.printstash.containers.api.image.tag')"
+            frontend_version="$(printf '%s\n' "${manifest}" | yq '.spec.values.controllers.printstash.containers.frontend.image.tag')"
           fi
           version="${version%%@*}"
+          if [[ "${version}" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-homeops\.[0-9]+$ ]]; then
+            version="v${BASH_REMATCH[1]}"
+          fi
           if [[ ! "${version}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::Unexpected PrintStash version '${version}'"
+            exit 1
+          fi
+          if [[ -z "${INPUT_VERSION}" && "${frontend_version%%@*}" != "${version}" ]]; then
+            echo "::error::Frontend and API upstream versions differ"
             exit 1
           fi
           echo "version=${version}" >> "${GITHUB_OUTPUT}"

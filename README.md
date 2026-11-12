@@ -53,7 +53,9 @@ apps/
 `.github/workflows/printstash-extension.yaml` reads the PrintStash tag that
 `home-ops` deploys, builds the extension at that same tag and publishes the
 Chrome, Edge and Firefox zips as the `printstash-extension-<version>` release.
-It runs every six hours and skips versions that are already published.
+It recognizes downstream API image revisions, requires the deployed frontend
+and API upstream versions to agree, runs every six hours, and skips versions
+that are already published.
 Server v0.15.1 uses `printstash-extension-v0.15.1-homeops.1`, extension package
 0.14.1, with a five-minute file-upload deadline and unchanged ten-second metadata
 deadlines. Builds include the AGPL license and modified-source archive.
