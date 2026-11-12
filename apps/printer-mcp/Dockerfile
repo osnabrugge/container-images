@@ -3,7 +3,7 @@
 FROM docker.io/library/node:26-bookworm-slim
 ENV NODE_ENV=production
 # renovate: datasource=npm depName=mcp-3d-printer-server
-ARG PRINTER_MCP_VERSION=1.2.73
+ARG PRINTER_MCP_VERSION=1.2.74
 # command -v asserts the bin name at build time rather than failing at runtime.
 RUN npm install -g "mcp-3d-printer-server@${PRINTER_MCP_VERSION}" \
     && npm cache clean --force \
