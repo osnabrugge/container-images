@@ -1,8 +1,7 @@
 ---
 name: PrintStash extension
-# Upstream ships the browser extension only as a 30-day CI artifact, never as a
-# release asset. Build it at the exact tag Flux deploys from home-ops so the
-# extension and the server stay on the same version.
+# Version-matched archives for manual browser installs, with explicit downstream
+# revisions when a deployed upstream version needs a capture fix.
 on:
   schedule:
     - cron: "17 */6 * * *"
@@ -10,6 +9,7 @@ on:
     branches: ["main"]
     paths:
       - .github/workflows/printstash-extension.yaml
+      - .github/patches/printstash-upload-timeout.patch
   workflow_dispatch:
     inputs:
       version:
@@ -30,6 +30,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      release: ${{ steps.version.outputs.release }}
+      patched: ${{ steps.version.outputs.patched }}
       build: ${{ steps.version.outputs.build }}
     steps:
       - name: Read the PrintStash tag from home-ops
@@ -52,11 +54,22 @@ jobs:
             exit 1
           fi
           echo "version=${version}" >> "${GITHUB_OUTPUT}"
-          if gh release view "printstash-extension-${version}" --repo "${REPO}" >/dev/null 2>&1; then
+          release="printstash-extension-${version}"
+          patched=false
+          if [[ "${version}" == "v0.15.1" ]]; then
+            release="${release}-homeops.1"
+            patched=true
+          fi
+          echo "release=${release}" >> "${GITHUB_OUTPUT}"
+          echo "patched=${patched}" >> "${GITHUB_OUTPUT}"
+          if result="$(gh api "repos/${REPO}/releases/tags/${release}" 2>&1)"; then
             echo "build=false" >> "${GITHUB_OUTPUT}"
-            echo "printstash-extension-${version} already published"
-          else
+            echo "${release} already published"
+          elif [[ "${result}" == *"(HTTP 404)"* ]]; then
             echo "build=true" >> "${GITHUB_OUTPUT}"
+          else
+            printf '%s\n' "${result}" >&2
+            exit 1
           fi
 
   build:
@@ -79,6 +92,23 @@ jobs:
           path: src
           persist-credentials: false
 
+      - name: Checkout downstream packaging
+        if: needs.resolve.outputs.patched == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: packaging
+          persist-credentials: false
+          sparse-checkout: .github/patches
+
+      - name: Apply the version-specific capture fix
+        if: needs.resolve.outputs.patched == 'true'
+        run: git -C .. apply "${GITHUB_WORKSPACE}/packaging/.github/patches/printstash-upload-timeout.patch"
+
+      - name: Include the upstream redistribution license
+        run: |
+          mkdir -p public
+          cp ../LICENSE public/LICENSE
+
       # Same toolchain as upstream's "Browser extension" CI job.
       - name: Set up pnpm
         uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
@@ -91,7 +121,7 @@ jobs:
           node-version: "26"
 
       - name: Install
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --allow-build='!edgedriver' --allow-build='!geckodriver' --allow-build='!esbuild'
 
       - name: Typecheck
         run: pnpm typecheck
@@ -99,11 +129,16 @@ jobs:
       - name: Package Chrome, Edge and Firefox
         run: pnpm zip:chrome && pnpm zip:edge && pnpm zip:firefox
 
+      - name: Verify capture and packaged manifest contracts
+        run: pnpm exec vitest run tests/popup.test.ts tests/capture-transport.test.ts tests/manifest.test.ts
+
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           VERSION: ${{ needs.resolve.outputs.version }}
+          RELEASE: ${{ needs.resolve.outputs.release }}
+          PATCHED: ${{ needs.resolve.outputs.patched }}
         run: |
           set -euo pipefail
           shopt -s nullglob
@@ -120,7 +155,18 @@ jobs:
 
           **Firefox:** release Firefox only accepts signed add-ons, so load the \`-firefox\` zip temporarily from \`about:debugging\`.
           EOF
-          gh release create "printstash-extension-${VERSION}" "${zips[@]}" \
+          if [[ "${PATCHED}" == "true" ]]; then
+            cat >> notes.md <<'EOF'
+
+          **HomeOps capture fix 1 (AI-assisted):** extension package 0.14.1 keeps
+          metadata deadlines at 10 seconds, but allows up to five minutes per file
+          upload. Cancellation, pairing and cleanup protections remain enabled.
+          This is a downstream build of server tag v0.15.1, not a new upstream
+          server release. The source archive includes the modified extension;
+          the complete patch and regression tests are in this repository.
+          EOF
+          fi
+          gh release create "${RELEASE}" "${zips[@]}" \
             --repo "${REPO}" \
             --title "PrintStash browser extension ${VERSION}" \
             --notes-file notes.md

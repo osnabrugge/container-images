@@ -1,0 +1,119 @@
+diff --git a/browser-extension/package.json b/browser-extension/package.json
+index 36b6bb8..86cb04c 100644
+--- a/browser-extension/package.json
++++ b/browser-extension/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "printstash-browser-extension",
+-  "version": "0.14.0",
++  "version": "0.14.1",
+   "private": true,
+   "type": "module",
+   "scripts": {
+diff --git a/browser-extension/popup.ts b/browser-extension/popup.ts
+index ca48fd0..a1fd4e7 100644
+--- a/browser-extension/popup.ts
++++ b/browser-extension/popup.ts
+@@ -219,12 +219,13 @@ class CaptureDiagnosticError extends Error {
+ }
+ 
+ const DEFAULT_CAPTURE_TIMEOUT_MS = 10_000;
++const DEFAULT_CAPTURE_UPLOAD_TIMEOUT_MS = 300_000;
+ 
+-function captureTimeoutMs() {
++function captureTimeoutMs(defaultTimeoutMs = DEFAULT_CAPTURE_TIMEOUT_MS) {
+   const configured = globalThis.__PRINTSTASH_CAPTURE_TIMEOUT_MS__;
+   return typeof configured === "number" && Number.isFinite(configured) && configured > 0
+     ? configured
+-    : DEFAULT_CAPTURE_TIMEOUT_MS;
++    : defaultTimeoutMs;
+ }
+ 
+ async function runCaptureStage<T>(
+@@ -235,6 +236,7 @@ async function runCaptureStage<T>(
+   provider?: DiagnosticProvider,
+   fallbackCode?: DiagnosticFallbackCode,
+   captureSignal?: AbortSignal,
++  defaultTimeoutMs = DEFAULT_CAPTURE_TIMEOUT_MS,
+ ): Promise<T> {
+   const controller = new AbortController();
+   let timer: ReturnType<typeof setTimeout> | undefined;
+@@ -244,7 +246,7 @@ async function runCaptureStage<T>(
+       timer = setTimeout(() => {
+         controller.abort();
+         reject(new CaptureDiagnosticError(timeoutCode, safeMessage, provider, fallbackCode));
+-      }, captureTimeoutMs());
++      }, captureTimeoutMs(defaultTimeoutMs));
+       operationResult.then(resolve, reject);
+     });
+   } catch (error) {
+@@ -336,6 +338,7 @@ function vaultStage(capture: CaptureOperation<Config>): CaptureStageRunner {
+       undefined,
+       undefined,
+       capture.signal,
++      stage === "slot_upload" ? DEFAULT_CAPTURE_UPLOAD_TIMEOUT_MS : DEFAULT_CAPTURE_TIMEOUT_MS,
+     );
+   };
+ }
+diff --git a/browser-extension/tests/popup.test.ts b/browser-extension/tests/popup.test.ts
+index 0445b0d..b48c881 100644
+--- a/browser-extension/tests/popup.test.ts
++++ b/browser-extension/tests/popup.test.ts
+@@ -53,6 +53,7 @@ async function settle() {
+ 
+ describe("popup browser adapters", () => {
+   afterEach(() => {
++    vi.useRealTimers();
+     vi.restoreAllMocks();
+     vi.unstubAllGlobals();
+   });
+@@ -1290,6 +1291,49 @@ describe("popup browser adapters", () => {
+       return { held, requests };
+     }
+ 
++    describe("large-upload deadline", () => {
++      it("finishes a slow upload after the metadata deadline without discarding it", async () => {
++        vi.useFakeTimers();
++        const { held, requests } = await startRichFailure("slot_upload", 200, true);
++
++        await vi.advanceTimersByTimeAsync(15_000);
++
++        expect(requests.some((request) => request.method === "DELETE")).toBe(false);
++        expect(button("#capture").disabled).toBe(true);
++        held.resolve(new Response(null, { status: 204 }));
++        await vi.waitFor(() =>
++          expect(element("#status").textContent).toContain("sent to Pending Imports"),
++        );
++        expect(button("#open-inbox").hidden).toBe(false);
++      });
++
++      it("still cancels and cleans up an upload that exceeds five minutes", async () => {
++        vi.useFakeTimers();
++        const { requests } = await startRichFailure("slot_upload", 200, true);
++
++        await vi.advanceTimersByTimeAsync(300_001);
++
++        await vi.waitFor(() =>
++          expect(element("#status").textContent).toContain("capture_vault_slot_upload_timeout"),
++        );
++        expect(requests.filter((request) => request.method === "DELETE")).toHaveLength(1);
++        expect(element("#connection-title").textContent).toBe("Connected");
++        expect(button("#capture").disabled).toBe(false);
++      });
++
++      it("keeps the short deadline for metadata requests", async () => {
++        vi.useFakeTimers();
++        await startRichFailure("slot_create", 200, true);
++
++        await vi.advanceTimersByTimeAsync(10_001);
++
++        await vi.waitFor(() =>
++          expect(element("#status").textContent).toContain("capture_vault_slot_create_timeout"),
++        );
++        expect(button("#capture").disabled).toBe(false);
++      });
++    });
++
+     it.each(stages)(
+       "retires the connection after rich capture authentication failure: %s",
+       async (stage) => {

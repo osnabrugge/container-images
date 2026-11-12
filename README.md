@@ -47,12 +47,16 @@ apps/
 | artifact | upstream | why we build it |
 | -------- | -------- | --------------- |
 | NetBox Diode image | [Reusable definition in the containers fork](https://github.com/osnabrugge/containers/tree/main/apps/netbox-diode) | Publish the pinned plugin-enabled NetBox variant through this repository's GHCR credentials; the recipe and tests remain in the reusable-image fork |
-| PrintStash browser extension | [xiao-villamor/PrintStash](https://github.com/xiao-villamor/PrintStash/tree/main/browser-extension) | Upstream only publishes it as a 30-day CI artifact |
+| PrintStash API capture fixes | [Reusable definition in the containers fork](https://github.com/osnabrugge/containers/tree/main/apps/printstash-api) | Publish the tested, pinned upstream API with private-setgid staging and in-flight capture resolver fixes; the recipe and native tests remain in the reusable-image fork |
+| PrintStash browser extension | [xiao-villamor/PrintStash](https://github.com/xiao-villamor/PrintStash/tree/main/browser-extension) | Version-matched archives for manual installs, including an explicit downstream revision when needed |
 
 `.github/workflows/printstash-extension.yaml` reads the PrintStash tag that
 `home-ops` deploys, builds the extension at that same tag and publishes the
 Chrome, Edge and Firefox zips as the `printstash-extension-<version>` release.
 It runs every six hours and skips versions that are already published.
+Server v0.15.1 uses `printstash-extension-v0.15.1-homeops.1`, extension package
+0.14.1, with a five-minute file-upload deadline and unchanged ten-second metadata
+deadlines. Builds include the AGPL license and modified-source archive.
 
 ## How builds work
 

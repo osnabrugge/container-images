@@ -1,0 +1,71 @@
+---
+name: PrintStash API capture fixes
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/printstash-api.yaml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: printstash-api-image
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the reusable image definition
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: osnabrugge/containers
+          ref: ba6db006e26760736449ab2abb155ff094bbc22a
+          persist-credentials: false
+
+      - name: Set up the pinned Go toolchain
+        uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+        with:
+          install_args: --locked go
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build the test image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: apps/printstash-api
+          load: true
+          tags: printstash-api:test
+          cache-from: type=gha,scope=printstash-api
+          cache-to: type=gha,scope=printstash-api,mode=max
+
+      - name: Verify native capture regressions
+        env:
+          TEST_IMAGE: printstash-api:test
+        run: |
+          go test ./apps/printstash-api -run Test -count=1
+          go vet ./apps/printstash-api
+
+      - name: Log in to GHCR
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish the tested image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: apps/printstash-api
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          cache-from: type=gha,scope=printstash-api
+          tags: ghcr.io/osnabrugge/printstash-api:0.15.1-homeops.1
+          labels: |
+            org.opencontainers.image.source=https://github.com/osnabrugge/container-images
+            org.opencontainers.image.url=https://github.com/osnabrugge/containers/tree/ba6db006e26760736449ab2abb155ff094bbc22a/apps/printstash-api
+            org.opencontainers.image.version=0.15.1-homeops.1
