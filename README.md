@@ -48,6 +48,7 @@ apps/
 | -------- | -------- | --------------- |
 | NetBox Diode image | [Reusable definition in the containers fork](https://github.com/osnabrugge/containers/tree/main/apps/netbox-diode) | Publish the pinned plugin-enabled NetBox variant through this repository's GHCR credentials; the recipe and tests remain in the reusable-image fork |
 | PrintStash API capture fixes | [Reusable definition in the containers fork](https://github.com/osnabrugge/containers/tree/main/apps/printstash-api) | Publish the tested, pinned upstream API with private-setgid staging and in-flight capture resolver fixes; the recipe and native tests remain in the reusable-image fork |
+| SMFC temperature fallback | [Reusable definition in the containers fork](https://github.com/osnabrugge/containers/tree/main/apps/smfc) | Publish the pinned controller with a fresh SMART alternative for HWMON I/O errors; native error handling and emergency fan protection remain unchanged |
 | PrintStash browser extension | [xiao-villamor/PrintStash](https://github.com/xiao-villamor/PrintStash/tree/main/browser-extension) | Version-matched archives for manual installs, including an explicit downstream revision when needed |
 
 `.github/workflows/printstash-extension.yaml` reads the PrintStash tag that
