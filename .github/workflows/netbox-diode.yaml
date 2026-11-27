@@ -14,15 +14,30 @@ concurrency:
   group: netbox-diode-image
   cancel-in-progress: false
 
+env:
+  NETBOX_IMAGE: ghcr.io/netbox-community/netbox:v4.7.6@sha256:41eb237fa24aa4a357c86db547ed815f8b263d35a3cd2e5e367aa427c72203e5
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Validate the pinned NetBox base and derive its version
+        id: version
+        run: |
+          python3 - <<'PY'
+          import os, re
+          match = re.fullmatch(r"ghcr\.io/netbox-community/netbox:v(\d+\.\d+\.\d+)@(sha256:[a-f0-9]{64})", os.environ["NETBOX_IMAGE"])
+          if not match:
+              raise SystemExit("NETBOX_IMAGE must be an exact NetBox release and digest")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"version={match.group(1)}\ndigest={match.group(2)}\n")
+          PY
+
       - name: Checkout the reusable image definition
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: osnabrugge/containers
-          ref: 89405ea36a6fabf168b860f51c85878ada3cb997
+          ref: bdeca50505bfd6ce5eebc66f757cabe7797b4911
           persist-credentials: false
 
       - name: Set up Docker Buildx
@@ -32,16 +47,24 @@ jobs:
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: apps/netbox-diode
+          build-args: |
+            NETBOX_IMAGE=${{ env.NETBOX_IMAGE }}
           load: true
           tags: netbox-diode:test
           cache-from: type=gha,scope=netbox-diode
           cache-to: type=gha,scope=netbox-diode,mode=max
 
       - name: Verify the image
+        env:
+          TEST_IMAGE: netbox-diode:test
+          NETBOX_EXPECTED_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          docker run --rm --entrypoint /opt/netbox/venv/bin/python netbox-diode:test -c \
-            "import importlib.metadata as m, os, grpc; from google.protobuf import __version__; assert os.geteuid() != 0; assert m.version('netboxlabs-diode-netbox-plugin') == '1.19.0'; print('Plugin/native dependencies verified')"
-          docker run --rm --entrypoint /usr/local/bin/uv netbox-diode:test pip check --python /opt/netbox/venv/bin/python
+          go test -count=1 -v ./apps/netbox-diode
+          base_packages="$(docker run --rm --network none --entrypoint /opt/netbox/venv/bin/python "$NETBOX_IMAGE" -c \
+            "import importlib.metadata as m, json; print(json.dumps({d.metadata['Name'].lower().replace('_', '-'): d.version for d in m.distributions()}))")"
+          docker run --rm --network none --env "NETBOX_BASE_PACKAGES=$base_packages" \
+            --entrypoint /opt/netbox/venv/bin/python netbox-diode:test -c \
+            "import importlib.metadata as m, json, os; base=json.loads(os.environ['NETBOX_BASE_PACKAGES']); assert base; actual={d.metadata['Name'].lower().replace('_', '-'):d.version for d in m.distributions()}; changed={name:(version,actual.get(name)) for name,version in base.items() if actual.get(name)!=version}; assert not changed, changed; print('Upstream base dependencies preserved')"
 
       - name: Log in to GHCR
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
@@ -54,11 +77,15 @@ jobs:
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: apps/netbox-diode
+          build-args: |
+            NETBOX_IMAGE=${{ env.NETBOX_IMAGE }}
           platforms: linux/amd64
           push: true
           provenance: false
           cache-from: type=gha,scope=netbox-diode
-          tags: ghcr.io/osnabrugge/netbox-diode:4.7.4
+          tags: ghcr.io/osnabrugge/netbox-diode:${{ steps.version.outputs.version }}
           labels: |
             org.opencontainers.image.source=https://github.com/osnabrugge/container-images
-            org.opencontainers.image.version=4.7.4
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+            org.opencontainers.image.base.name=${{ env.NETBOX_IMAGE }}
+            org.opencontainers.image.base.digest=${{ steps.version.outputs.digest }}

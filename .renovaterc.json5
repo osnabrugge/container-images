@@ -4,6 +4,16 @@
     "github>home-operations/renovate-presets#12.0.0",
     ":timezone(America/Toronto)",
   ],
+  customManagers: [
+    {
+      customType: "regex",
+      managerFilePatterns: ["/^\\.github/workflows/netbox-diode\\.yaml$/"],
+      matchStrings: [
+        "NETBOX_IMAGE:\\s*[\"']?(?<depName>ghcr\\.io/netbox-community/netbox):(?<currentValue>v\\d+\\.\\d+\\.\\d+)@(?<currentDigest>sha256:[a-f0-9]{64})",
+      ],
+      datasourceTemplate: "docker",
+    },
+  ],
   packageRules: [
     // Auto-merge rules
     {

@@ -51,6 +51,15 @@ apps/
 | SMFC temperature fallback | [Reusable definition in the containers fork](https://github.com/osnabrugge/containers/tree/main/apps/smfc) | Publish the pinned controller with a fresh SMART alternative for HWMON I/O errors; native error handling and emergency fan protection remain unchanged |
 | PrintStash browser extension | [xiao-villamor/PrintStash](https://github.com/xiao-villamor/PrintStash/tree/main/browser-extension) | Version-matched archives for manual installs, including an explicit downstream revision when needed |
 
+The NetBox Diode workflow has one tag-and-digest-pinned `NETBOX_IMAGE`, tracked
+by Renovate. It passes that base to the immutable reusable recipe, derives the
+published tag from it, runs the native container tests and rejects changes to
+packages already supplied by the upstream base. A reviewed base update triggers
+the build on merge; a failed compatibility check cannot publish a new image.
+Plugin changes still require a reviewed recipe/lock update and checkout-pin bump.
+The consumer in `home-ops` groups the chart and custom-image updates and checks
+their application versions before accepting the upgrade.
+
 `.github/workflows/printstash-extension.yaml` reads the PrintStash tag that
 `home-ops` deploys, builds the extension at that same tag and publishes the
 Chrome, Edge and Firefox zips as the `printstash-extension-<version>` release.
